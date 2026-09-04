@@ -287,7 +287,17 @@ class AuthMixin:
                 field("login-server", _("Server URL"), "server"),
                 field("login-user", _("Username"), "user"),
                 field("login-pass", _("Password"), "pass", mask=True),
-                field("login-headers", _("Custom headers"), "headers"),
+                # Custom headers: support both JSON and line-separated formats.
+                # Placeholder examples show both options for clarity.
+                Row([
+                    Text(_("Custom headers (optional)"), w=140, size="normal", 
+                         color=theme.SUBTLE_FG),
+                    TextBox("login-headers", text=self._login.get("headers", ""), 
+                            placeholder=_('JSON: {"X-Auth":"token"} or lines: Name: Value'),
+                            w=360,
+                            on_change=lambda v: self._login.__setitem__("headers", v),
+                            on_submit=lambda v: self._do_login()),
+                ], gap=12, align="center"),
                 Row([
                     Button(_("Use Quick Connect"), id="login-qc",
                            icon="radio",
