@@ -294,10 +294,10 @@ class AuthMixin:
                          color=theme.SUBTLE_FG),
                     TextBox("login-headers", text=self._login.get("headers", ""), 
                             placeholder=_('JSON: {"X-Auth":"token"} or lines: Name: Value'),
-                            w=360,
+                            w=360, h=100, multiline=True,
                             on_change=lambda v: self._login.__setitem__("headers", v),
                             on_submit=lambda v: self._do_login()),
-                ], gap=12, align="center"),
+                ], gap=12, align="start"),
                 Row([
                     Button(_("Use Quick Connect"), id="login-qc",
                            icon="radio",

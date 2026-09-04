@@ -1208,6 +1208,9 @@ local function draw_textbox(ass, node, ex, ey, clip)
             { fill = state.tok.selection, a = 200, clip = inner })
     end
     local disp = node.mask and string.rep('•', u8_count(text)) or text
+    if node.multiline then
+        disp = disp:gsub('\n', '\\N')
+    end
     if focused then
         -- The caret is an INLINE zero-width ASS drawing spliced into
         -- the text at the cursor: libass places it at the exact pen
@@ -2817,8 +2820,12 @@ local function tb_key(name)
         tb.cursor = #tb.text
         tb_fix_shift(node, tb); request_render()
     elseif name == 'ENTER' then
-        send({ t = 'submit', id = node.id, value = tb.text })
-        tb.committed = tb.text
+        if node.multiline then
+            tb_insert('\n')
+        else
+            send({ t = 'submit', id = node.id, value = tb.text })
+            tb.committed = tb.text
+        end
     elseif name == 'ESC' then
         if state.tb_menu then
             state.tb_menu = nil
@@ -2834,7 +2841,11 @@ local function tb_key(name)
     elseif name == 'PASTE' then
         local clip = clip_get()
         if clip then
-            tb_insert(clip:gsub('[\r\n]', ' '))
+            if node.multiline then
+                tb_insert(clip:gsub('\r\n', '\n'):gsub('\r', '\n'))
+            else
+                tb_insert(clip:gsub('[\r\n]', ' '))
+            end
         else
             clip_notify('paste')
         end
@@ -2850,7 +2861,11 @@ local text_key_names = {}
 function tb_key_text(e)
     if not e or e.event == 'up' then return end
     local t = e.key_text
-    if not t or t == '' or t:byte(1) < 0x20 then return end
+    if not t or t == '' then return end
+    if t:byte(1) < 0x20 then
+        local node = focused_node()
+        if not node or not node.multiline or t ~= '\n' then return end
+    end
     tb_insert(t)
 end
 

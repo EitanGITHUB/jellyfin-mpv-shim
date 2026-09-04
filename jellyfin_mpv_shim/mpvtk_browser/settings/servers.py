@@ -138,6 +138,7 @@ class ServersTabMixin:
                              color=theme.SUBTLE_FG),
                         TextBox("sv-headers-%d" % i, text=custom_headers,
                                 placeholder=_("Custom headers JSON"), w=320,
+                                h=100, multiline=True,
                                 on_commit=lambda value, u=sv.get("uuid"):
                                     self._set_server_headers(u, value),
                                 on_submit=lambda value, u=sv.get("uuid"):

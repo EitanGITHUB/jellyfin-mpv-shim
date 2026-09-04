@@ -394,6 +394,7 @@ class TextBox(Element):
         # agreed, so it does not also fire; ESC reverts and stays silent.
         on_commit=None,
         force=False,  # override renderer-local edit state with ``text``
+        multiline=False,
         **kw,
     ):
         size = theme.size('NORMAL') if size is None else theme.text_size(size)
@@ -407,6 +408,7 @@ class TextBox(Element):
         self.on_submit = on_submit
         self.on_commit = on_commit
         self.force = force
+        self.multiline = multiline
 
 
 class Slider(Element):

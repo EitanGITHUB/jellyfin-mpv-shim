@@ -641,7 +641,7 @@ def _arrange_image_map(ctx, el, x, y, w, h, sc, path):
 
 
 def _arrange_textbox(ctx, el, x, y, w, h, sc, path):
-    """An editable single-line field."""
+    """An editable text field."""
     node = _base(el, "textbox", x, y, w, h, sc, path)
     node["text"] = el.text
     node["ph"] = el.placeholder
@@ -650,6 +650,8 @@ def _arrange_textbox(ctx, el, x, y, w, h, sc, path):
         node["mask"] = True
     if el.force:
         node["force"] = True
+    if el.multiline:
+        node["multiline"] = True
     _reg(ctx, node["id"], "change", el.on_change)
     _reg(ctx, node["id"], "submit", el.on_submit)
     _reg(ctx, node["id"], "commit", el.on_commit)

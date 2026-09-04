@@ -380,9 +380,10 @@ class ServerConn:
         # off the apiclient tears the session down after every request, so
         # each browse call would pay a fresh TLS handshake. Leave it alone.
         client.start(websocket=False)
-        custom_headers = parse_custom_headers(
-            info.get("custom_headers", settings.custom_headers)
-        )
+        raw_headers = info.get("custom_headers")
+        if raw_headers is None:
+            raw_headers = settings.custom_headers
+        custom_headers = parse_custom_headers(raw_headers)
         client.http.session.headers.update(custom_headers)
         original_get_headers = client.http._get_default_headers
 
