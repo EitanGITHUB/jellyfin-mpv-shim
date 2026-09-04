@@ -302,8 +302,9 @@ class MpvtkBrowser(DialogsMixin, LiveTvDialogsMixin, AuthMixin, SettingsMixin,
         self._timer_dlg = None
         self._guide_dlg = None
         # Login form field values (renderer holds the live text; we mirror it
-        # here via on_change so Connect can read all three fields at once).
-        self._login = {"server": "", "user": "", "pass": ""}
+        # here via on_change so Connect can read all four fields at once).
+        self._login = {"server": "", "user": "", "pass": "",
+                       "headers": settings.custom_headers}
         self._login_error = None
         # Live text of the chrome search box (the renderer owns the widget; we
         # mirror it so the search *button* can read it).

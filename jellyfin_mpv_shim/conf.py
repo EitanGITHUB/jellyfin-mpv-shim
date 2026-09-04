@@ -474,6 +474,7 @@ class Settings(SettingsBase):
     lang: Optional[str] = None
     discord_presence: bool = False
     ignore_ssl_cert: bool = False
+    custom_headers: str = ""
     menu_mouse: bool = True
     media_keys: bool = True
     input_gamepad: bool = False

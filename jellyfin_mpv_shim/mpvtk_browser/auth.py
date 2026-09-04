@@ -287,6 +287,7 @@ class AuthMixin:
                 field("login-server", _("Server URL"), "server"),
                 field("login-user", _("Username"), "user"),
                 field("login-pass", _("Password"), "pass", mask=True),
+                field("login-headers", _("Custom headers"), "headers"),
                 Row([
                     Button(_("Use Quick Connect"), id="login-qc",
                            icon="radio",
@@ -342,7 +343,8 @@ class AuthMixin:
         def work():
             return self.controller.quick_connect(
                 server, on_code,
-                lambda: (route.get("_qc") or {}).get("cancelled", True))
+                lambda: (route.get("_qc") or {}).get("cancelled", True),
+                custom_headers=self._login.get("headers"))
 
         def done(ok):
             if (route.get("_qc") or {}).get("cancelled"):
@@ -372,7 +374,8 @@ class AuthMixin:
 
         def work():
             return self.controller.add_server(
-                info["server"], info["user"], info["pass"])
+                info["server"], info["user"], info["pass"],
+                custom_headers=info.get("headers"))
 
         def done(ok):
             if ok:

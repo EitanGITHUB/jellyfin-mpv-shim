@@ -1068,6 +1068,12 @@ Other miscellaneous configuration options. You probably won't have to change the
     holds the same option at `inf` while it is on screen, so the player has to set it for each photo.
 - `lang` - Allows overriding system locale. (Enter a language code.) Default: `null`
   - MPV Shim should use your OS language by default.
+- `custom_headers` - Extra HTTP headers to send with Jellyfin requests. Default: `""`
+  - Enter either JSON such as `{"X-Example": "abc"}` or one header per line in
+    the form `Name: Value`.
+  - Lines beginning with `#` are ignored, and the app applies these headers to the
+    Jellyfin auth/session layer so they are used both for the saved-server config
+    and for login attempts from the Add Server screen.
 - `ignore_ssl_cert` - Ignore SSL certificates. Default: `false`
   - Please consider getting a certificate from Let's Encrypt instead of using this.
 - `connect_retry_mins` - Number of minutes to retry connecting before showing login window. Default: `0`

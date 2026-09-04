@@ -77,6 +77,38 @@ def is_local_subnet(host, local_ips, prefix_length=24):
 log = logging.getLogger("clients")
 path_regex = re.compile(r"^(https?://)?(?:(\[[^/]+\])|([^/:]+))(:[0-9]+)?(/.*)?$")
 
+
+def parse_custom_headers(value):
+    """Parse custom HTTP headers from JSON or "Name: Value" lines."""
+    if value in (None, ""):
+        return {}
+    if isinstance(value, dict):
+        return {str(k): str(v) for k, v in value.items()}
+    text = str(value).strip()
+    if not text:
+        return {}
+    try:
+        parsed = json.loads(text)
+        if isinstance(parsed, dict):
+            return {str(k): str(v) for k, v in parsed.items()}
+    except (TypeError, ValueError):
+        pass
+
+    headers = {}
+    for line in text.replace("\r\n", "\n").split("\n"):
+        line = line.strip()
+        if not line or line.startswith("#"):
+            continue
+        if ":" not in line:
+            continue
+        name, value = line.split(":", 1)
+        name = name.strip()
+        value = value.strip()
+        if name:
+            headers[name] = value
+    return headers
+
+
 # How often to poll the server while waiting for the user to authorize a
 # Quick Connect request, and how long to keep polling before giving up.
 QUICK_CONNECT_POLL_SECS = 3
@@ -332,6 +364,23 @@ class ClientManager(object):
             else:
                 log.warning(_("Adding server failed."))
 
+    def _apply_custom_headers(self, client, headers=None):
+        headers = parse_custom_headers(
+            headers if headers is not None else settings.custom_headers
+        )
+        client.config.data["http.custom_headers"] = headers
+
+        for session in (
+            getattr(getattr(client, "http", None), "session", None),
+            getattr(getattr(client, "auth", None), "session", None),
+        ):
+            if session is not None:
+                try:
+                    session.headers.update(headers)
+                except Exception:
+                    log.exception("Failed to apply custom HTTP headers.")
+        return headers
+
     def client_factory(self):
         client = JellyfinClient(allow_multiple_clients=True)
         client.config.data["app.default"] = True
@@ -340,12 +389,14 @@ class ClientManager(object):
         )
         client.config.data["http.user_agent"] = USER_AGENT
         client.config.data["auth.ssl"] = not settings.ignore_ssl_cert
+        self._apply_custom_headers(client)
 
         if settings.tls_client_cert:
             client.config.data["auth.tls_client_cert"] = settings.tls_client_cert
             client.config.data["auth.tls_client_key"] = settings.tls_client_key
             client.config.data["auth.tls_server_ca"] = settings.tls_server_ca
             client.auth.create_session_with_client_auth()
+            self._apply_custom_headers(client)
 
         return client
 
@@ -588,12 +639,14 @@ class ClientManager(object):
         return True
 
     def login(
-        self, server: str, username: str, password: str, force_unique: bool = False
+        self, server: str, username: str, password: str,
+        force_unique: bool = False, custom_headers: str = None
     ):
         server = self._normalize_server(server)
         owner_id = userManager.active_id
 
         client = self.client_factory()
+        self._apply_custom_headers(client, custom_headers)
         client.auth.connect_to_address(server)
         result = client.auth.login(server, username, password)
         if "AccessToken" in result:
@@ -601,7 +654,7 @@ class ClientManager(object):
                                         owner_id=owner_id)
         return False
 
-    def quick_connect_initiate(self, server: str):
+    def quick_connect_initiate(self, server: str, custom_headers: str = None):
         """Start a Quick Connect request against ``server``.
 
         Returns ``(client, secret, code)``. The ``code`` must be shown to the
@@ -611,6 +664,7 @@ class ClientManager(object):
         """
         server = self._normalize_server(server)
         client = self.client_factory()
+        self._apply_custom_headers(client, custom_headers)
         client.auth.connect_to_address(server)
         servers = client.auth.credentials.get_credentials().get("Servers")
         if not servers:
@@ -662,14 +716,16 @@ class ClientManager(object):
         return self._finalize_login(client, result["User"]["Name"],
                                     owner_id=owner_id)
 
-    def login_with_quick_connect(self, server: str, code_callback=None, should_cancel=None):
+    def login_with_quick_connect(self, server: str, code_callback=None,
+                                should_cancel=None, custom_headers: str = None):
         """High-level Quick Connect login.
 
         Initiates the request, hands the user-facing code to ``code_callback``,
         then blocks polling until authorized. Raises QuickConnectError on setup
         failure; returns True/False from the wait phase.
         """
-        client, secret, code = self.quick_connect_initiate(server)
+        client, secret, code = self.quick_connect_initiate(server,
+                                                        custom_headers=custom_headers)
         if code_callback is not None:
             code_callback(code)
         return self.quick_connect_wait(client, secret, should_cancel=should_cancel)
