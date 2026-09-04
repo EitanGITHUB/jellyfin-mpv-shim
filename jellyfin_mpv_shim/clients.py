@@ -377,6 +377,18 @@ class ClientManager(object):
 
         client.config.data["http.custom_headers"] = headers
 
+        # The API layer builds an explicit headers dictionary for each request,
+        # so make the custom values part of that dictionary as well as the
+        # session defaults.
+        original_get_headers = getattr(client.http, "_get_default_headers", None)
+        if original_get_headers is not None:
+            def get_default_headers(content_type="application/json"):
+                request_headers = original_get_headers(content_type)
+                request_headers.update(headers)
+                return request_headers
+
+            client.http._get_default_headers = get_default_headers
+
         # Authentication uses its own API object and falls back to the global
         # requests module when no session exists. A session is required here so
         # discovery and login receive the same headers as later API requests.
