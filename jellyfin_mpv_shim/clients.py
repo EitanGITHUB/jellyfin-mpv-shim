@@ -380,14 +380,21 @@ class ClientManager(object):
         # The API layer builds an explicit headers dictionary for each request,
         # so make the custom values part of that dictionary as well as the
         # session defaults.
-        original_get_headers = getattr(client.http, "_get_default_headers", None)
-        if original_get_headers is not None:
-            def get_default_headers(content_type="application/json"):
-                request_headers = original_get_headers(content_type)
-                request_headers.update(headers)
-                return request_headers
+        http_clients = [client.http]
+        auth_api = getattr(client.auth, "API", None)
+        auth_http = getattr(auth_api, "client", None)
+        if auth_http is not None and auth_http not in http_clients:
+            http_clients.append(auth_http)
+        for http_client in http_clients:
+            original_get_headers = getattr(http_client, "_get_default_headers", None)
+            if original_get_headers is not None:
+                def get_default_headers(content_type="application/json",
+                                        original_get_headers=original_get_headers):
+                    request_headers = original_get_headers(content_type)
+                    request_headers.update(headers)
+                    return request_headers
 
-            client.http._get_default_headers = get_default_headers
+                http_client._get_default_headers = get_default_headers
 
         # Authentication uses its own API object and falls back to the global
         # requests module when no session exists. A session is required here so
@@ -395,7 +402,7 @@ class ClientManager(object):
         if getattr(client.auth, "session", None) is None:
             client.auth.session = requests.Session()
 
-        for owner in (client.auth, client.http, client.jellyfin):
+        for owner in (client.auth, client.http, client.jellyfin, auth_http):
             session = getattr(owner, "session", None)
             if session is not None:
                 session.headers.update(headers)
