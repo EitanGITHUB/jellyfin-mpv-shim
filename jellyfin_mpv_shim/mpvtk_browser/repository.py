@@ -380,9 +380,18 @@ class ServerConn:
         # off the apiclient tears the session down after every request, so
         # each browse call would pay a fresh TLS handshake. Leave it alone.
         client.start(websocket=False)
-        client.http.session.headers.update(
-            parse_custom_headers(settings.custom_headers)
+        custom_headers = parse_custom_headers(
+            info.get("custom_headers", settings.custom_headers)
         )
+        client.http.session.headers.update(custom_headers)
+        original_get_headers = client.http._get_default_headers
+
+        def get_default_headers(content_type="application/json"):
+            request_headers = original_get_headers(content_type)
+            request_headers.update(custom_headers)
+            return request_headers
+
+        client.http._get_default_headers = get_default_headers
 
         self.client = client
         self.api = client.jellyfin
