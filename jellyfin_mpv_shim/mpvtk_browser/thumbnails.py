@@ -148,6 +148,10 @@ class MemoryCache:
             _k, (_v, nb) = self._items.popitem(last=False)
             self._bytes -= nb
 
+    def clear(self):
+        self._items.clear()
+        self._bytes = 0
+
     def __len__(self):
         return len(self._items)
 
@@ -496,12 +500,25 @@ class ThumbnailStore:
         Replaced wholesale rather than merged: a server the user has just
         signed out of must stop receiving its old token.
         """
-        self._auth = dict(origins or {})
+        new_auth = dict(origins or {})
+        changed = new_auth != getattr(self, "_auth", {})
+        self._auth = new_auth
         # Header changes can turn a previous authorization failure into a
         # successful request, so allow suppressed artwork keys to retry.
         gone = getattr(self, "_gone", None)
         if gone is not None:
             gone.clear()
+        if changed and hasattr(self, "_mem"):
+            self._mem.clear()
+            try:
+                for name in os.listdir(self.cache_dir):
+                    if name.endswith(".img"):
+                        try:
+                            os.remove(os.path.join(self.cache_dir, name))
+                        except OSError:
+                            pass
+            except OSError:
+                pass
 
     def _headers_for(self, url):
         """Headers for an artwork request: our user agent always, and the
