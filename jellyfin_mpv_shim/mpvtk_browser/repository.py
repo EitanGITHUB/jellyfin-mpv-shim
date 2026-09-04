@@ -22,6 +22,8 @@ from jellyfin_apiclient_python import JellyfinClient
 
 from .. import items_api
 from ..books import AUDIOBOOK_TYPE, BOOK_TYPE
+from ..clients import parse_custom_headers
+from ..conf import settings
 from ..constants import USER_APP_NAME, CLIENT_VERSION, USER_AGENT
 from ..i18n import _
 from ..sync.db import SyncDB, STATUS_COMPLETE
@@ -378,6 +380,9 @@ class ServerConn:
         # off the apiclient tears the session down after every request, so
         # each browse call would pay a fresh TLS handshake. Leave it alone.
         client.start(websocket=False)
+        client.http.session.headers.update(
+            parse_custom_headers(settings.custom_headers)
+        )
 
         self.client = client
         self.api = client.jellyfin

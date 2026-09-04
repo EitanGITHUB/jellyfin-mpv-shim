@@ -17,6 +17,7 @@ import threading
 
 import socket
 import ipaddress
+import requests
 from collections import OrderedDict
 from urllib.parse import urlparse
 
@@ -365,20 +366,27 @@ class ClientManager(object):
                 log.warning(_("Adding server failed."))
 
     def _apply_custom_headers(self, client, headers=None):
-        headers = parse_custom_headers(
-            headers if headers is not None else settings.custom_headers
-        )
+        """Apply custom headers to the sessions used by every client request."""
+        if headers is not None:
+            headers = parse_custom_headers(headers)
+            client._custom_headers = headers
+        else:
+            headers = getattr(client, "_custom_headers", None)
+            if headers is None:
+                headers = parse_custom_headers(settings.custom_headers)
+
         client.config.data["http.custom_headers"] = headers
 
-        for session in (
-            getattr(getattr(client, "http", None), "session", None),
-            getattr(getattr(client, "auth", None), "session", None),
-        ):
+        # Authentication uses its own API object and falls back to the global
+        # requests module when no session exists. A session is required here so
+        # discovery and login receive the same headers as later API requests.
+        if getattr(client.auth, "session", None) is None:
+            client.auth.session = requests.Session()
+
+        for owner in (client.auth, client.http, client.jellyfin):
+            session = getattr(owner, "session", None)
             if session is not None:
-                try:
-                    session.headers.update(headers)
-                except Exception:
-                    log.exception("Failed to apply custom HTTP headers.")
+                session.headers.update(headers)
         return headers
 
     def client_factory(self):
@@ -649,6 +657,8 @@ class ClientManager(object):
         self._apply_custom_headers(client, custom_headers)
         client.auth.connect_to_address(server)
         result = client.auth.login(server, username, password)
+        # Reapply headers after login to ensure they persist across all API calls
+        self._apply_custom_headers(client, custom_headers)
         if "AccessToken" in result:
             return self._finalize_login(client, username, force_unique,
                                         owner_id=owner_id)
@@ -709,6 +719,8 @@ class ClientManager(object):
             return False
 
         result = client.auth.login_with_quick_connect(address, secret)
+        # Reapply headers after quick connect login to ensure they persist
+        self._apply_custom_headers(client)
         if "AccessToken" not in result:
             log.warning("Quick Connect authentication failed.")
             return False
@@ -972,6 +984,8 @@ class ClientManager(object):
         try:
             client = self.client_factory()
             state = client.authenticate({"Servers": [server]}, discover=False)
+            # Reapply custom headers after authentication, since auth may reset sessions
+            self._apply_custom_headers(client)
             server["connected"] = state["State"] == CONNECTION_STATE["SignedIn"]
             if not server["connected"]:
                 return False
