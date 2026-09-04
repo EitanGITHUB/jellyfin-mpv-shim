@@ -632,6 +632,9 @@ class ClientManager(object):
         else:
             server["uuid"] = str(uuid.uuid4())
         server["username"] = username
+        custom_headers = getattr(client, "_custom_headers", None)
+        if custom_headers:
+            server["custom_headers"] = custom_headers
         if force_unique and server["Id"] in self.clients:
             return True
         with self._switch_lock:
@@ -1002,6 +1005,7 @@ class ClientManager(object):
 
         try:
             client = self.client_factory()
+            self._apply_custom_headers(client, server.get("custom_headers"))
             state = client.authenticate({"Servers": [server]}, discover=False)
             # Reapply custom headers after authentication, since auth may reset sessions
             self._apply_custom_headers(client)
