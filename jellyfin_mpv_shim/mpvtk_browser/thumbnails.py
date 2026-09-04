@@ -429,12 +429,12 @@ class ThumbnailStore:
         except Exception as e:
             log.debug("Thumbnail load failed: %s", url, exc_info=True)
             image = None
-            # A 4xx means the image isn't there and never will be at this
-            # URL; anything else (timeout, connection reset, 5xx, a
-            # truncated body) is transient and must stay retryable.
+            # Only a missing-image response is permanent. Authentication and
+            # proxy 4xx responses can become valid after headers or session
+            # state change, so those must remain retryable.
             resp = getattr(e, "response", None)
             status = getattr(resp, "status_code", None)
-            if status is not None and 400 <= status < 500:
+            if status in (404, 410):
                 with self._lock:
                     self._gone.add(key)
         self._results.put((key, image))
@@ -497,6 +497,11 @@ class ThumbnailStore:
         signed out of must stop receiving its old token.
         """
         self._auth = dict(origins or {})
+        # Header changes can turn a previous authorization failure into a
+        # successful request, so allow suppressed artwork keys to retry.
+        gone = getattr(self, "_gone", None)
+        if gone is not None:
+            gone.clear()
 
     def _headers_for(self, url):
         """Headers for an artwork request: our user agent always, and the
