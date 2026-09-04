@@ -514,8 +514,16 @@ class ThumbnailStore:
             parts = urlparse(url)
         except Exception:
             return headers
-        origin_headers = self._auth.get(
-            (parts.scheme, parts.hostname, parts.port))
+        origin = (parts.scheme, parts.hostname, parts.port)
+        origin_headers = self._auth.get(origin)
+        if origin_headers is None:
+            default_port = {"http": 80, "https": 443}.get(parts.scheme)
+            if parts.port == default_port:
+                origin_headers = self._auth.get(
+                    (parts.scheme, parts.hostname, None))
+            elif parts.port is None and default_port is not None:
+                origin_headers = self._auth.get(
+                    (parts.scheme, parts.hostname, default_port))
         if isinstance(origin_headers, dict):
             headers.update(origin_headers)
         elif origin_headers:
