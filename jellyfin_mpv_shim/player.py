@@ -2362,8 +2362,19 @@ class PlayerManager(AudioMixin, ReportingMixin, WindowMixin):
                      "subtitle on %s, and the option is not per-URL.",
                      ", ".join(sorted(str(h) for h in foreign)))
             return False
+        config = getattr(client, "config", None)
+        config_data = getattr(config, "data", {})
+        custom_headers = config_data.get("http.custom_headers") or {}
+        mpv_headers = [
+            "%s: %s" % (name, value)
+            for name, value in custom_headers.items()
+        ]
+        if header and "Token=" in header:
+            mpv_headers.insert(0, "Authorization: " + header)
+        if not mpv_headers:
+            return False
         try:
-            self._player.http_header_fields = ["Authorization: " + header]
+            self._player.http_header_fields = mpv_headers
         except Exception:
             log.warning("mpv would not take http-header-fields; falling back "
                         "to a token in the URL", exc_info=True)
