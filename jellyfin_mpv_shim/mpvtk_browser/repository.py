@@ -384,6 +384,7 @@ class ServerConn:
         if raw_headers is None:
             raw_headers = settings.custom_headers
         custom_headers = parse_custom_headers(raw_headers)
+        self.custom_headers = custom_headers
         client.config.data["http.custom_headers"] = custom_headers
         client.http.session.headers.update(custom_headers)
         original_get_headers = client.http._get_default_headers
@@ -570,7 +571,8 @@ class LibrarySource:
                 client = conn.client
                 base = client.config.data.get("auth.server") or ""
                 header = client.http._get_authenication_header()
-                custom_headers = client.config.data.get("http.custom_headers") or {}
+                custom_headers = (getattr(conn, "custom_headers", None) or
+                                  client.config.data.get("http.custom_headers") or {})
             except Exception:
                 log.debug("no auth header for a browse connection",
                           exc_info=True)
