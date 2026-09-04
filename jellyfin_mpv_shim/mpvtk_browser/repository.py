@@ -384,6 +384,7 @@ class ServerConn:
         if raw_headers is None:
             raw_headers = settings.custom_headers
         custom_headers = parse_custom_headers(raw_headers)
+        client.config.data["http.custom_headers"] = custom_headers
         client.http.session.headers.update(custom_headers)
         original_get_headers = client.http._get_default_headers
 
