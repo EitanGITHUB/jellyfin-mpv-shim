@@ -568,6 +568,7 @@ class LibrarySource:
                 client = conn.client
                 base = client.config.data.get("auth.server") or ""
                 header = client.http._get_authenication_header()
+                custom_headers = client.config.data.get("http.custom_headers") or {}
             except Exception:
                 log.debug("no auth header for a browse connection",
                           exc_info=True)
@@ -576,7 +577,9 @@ class LibrarySource:
                 continue
             parts = urlparse(base)
             if parts.hostname:
-                out[(parts.scheme, parts.hostname, parts.port)] = header
+                origin_headers = {"Authorization": header}
+                origin_headers.update(custom_headers)
+                out[(parts.scheme, parts.hostname, parts.port)] = origin_headers
         return out
 
     def _conn(self, server_uuid) -> ServerConn:

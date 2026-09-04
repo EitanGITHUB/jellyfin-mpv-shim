@@ -514,9 +514,13 @@ class ThumbnailStore:
             parts = urlparse(url)
         except Exception:
             return headers
-        header = self._auth.get((parts.scheme, parts.hostname, parts.port))
-        if header:
-            headers["Authorization"] = header
+        origin_headers = self._auth.get(
+            (parts.scheme, parts.hostname, parts.port))
+        if isinstance(origin_headers, dict):
+            headers.update(origin_headers)
+        elif origin_headers:
+            # Keep accepting the original Authorization-only map format.
+            headers["Authorization"] = origin_headers
         return headers
 
     def _load_remote(self, key, url):

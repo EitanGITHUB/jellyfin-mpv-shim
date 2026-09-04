@@ -6,6 +6,7 @@ these end in a navigation rather than an invalidate.
 """
 
 import logging
+import json
 
 from ...i18n import _
 from ...mpvtk.widgets import (
@@ -122,6 +123,9 @@ class ServersTabMixin:
         }
     def _server_row(self, sv, i):
         connected = sv.get("connected")
+        custom_headers = sv.get("custom_headers") or {}
+        if isinstance(custom_headers, dict):
+            custom_headers = json.dumps(custom_headers, separators=(",", ":"))
         return {
             "id": "sv-%d" % i,
             "bg": theme.PANEL_BG,
@@ -131,7 +135,14 @@ class ServersTabMixin:
                      color=theme.OK_GREEN if connected else theme.FAV_RED),
                 Column([Text(sv.get("name", "?"), size="normal", bold=True),
                         Text(sv.get("address", ""), size="caption",
-                             color=theme.SUBTLE_FG)], gap=1, flex=1),
+                             color=theme.SUBTLE_FG),
+                        TextBox("sv-headers-%d" % i, text=custom_headers,
+                                placeholder=_("Custom headers JSON"), w=320,
+                                on_commit=lambda value, u=sv.get("uuid"):
+                                    self._set_server_headers(u, value),
+                                on_submit=lambda value, u=sv.get("uuid"):
+                                    self._set_server_headers(u, value))],
+                       gap=3, flex=1),
                 Text(sv.get("username", ""), size="small",
                      color=theme.SUBTLE_FG),
                 Text(_("Connected") if connected else _("Offline"),
@@ -150,6 +161,24 @@ class ServersTabMixin:
                                title=_("Remove Server"), yes=_("Remove"))),
             ],
         }
+    def _set_server_headers(self, uuid, headers):
+        if not uuid or self.controller is None:
+            return
+        ep = self._epoch
+
+        def work():
+            if not self.controller.update_server_headers(uuid, headers):
+                raise RuntimeError("update_server_headers refused")
+            return self.controller.rebuild_source()
+
+        def done(source):
+            if source is not None:
+                self.set_source(source)
+            self.open_settings("servers")
+
+        self.run_async(work, done, ep,
+                       on_error=lambda _exc: self.set_status(
+                           _("Could not save custom headers.")))
     def _auto_dl_servers(self):
         """The configured allow-list as a set. Empty means no server."""
         raw = (self._config().get_settings().get("auto_download_servers")

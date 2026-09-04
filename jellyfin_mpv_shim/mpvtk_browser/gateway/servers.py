@@ -72,6 +72,7 @@ class ServersMixin(GatewayCore):
                 "address": cred.get("address") or "",
                 "username": cred.get("Username") or cred.get("username") or "",
                 "connected": client is not None,
+                "custom_headers": cred.get("custom_headers") or {},
             })
         return out
 
@@ -81,6 +82,28 @@ class ServersMixin(GatewayCore):
             return True
         except Exception:
             log.error("mpvtk remove_server failed", exc_info=True)
+            return False
+
+    def update_server_headers(self, uuid, headers):
+        from ...clients import parse_custom_headers
+
+        try:
+            credential = next(
+                cred for cred in deps.clientManager.credentials
+                if cred.get("uuid") == uuid
+            )
+            parsed = parse_custom_headers(headers)
+            if parsed:
+                credential["custom_headers"] = parsed
+            else:
+                credential.pop("custom_headers", None)
+            client = deps.clientManager.clients.get(uuid)
+            if client is not None:
+                deps.clientManager._apply_custom_headers(client, parsed)
+            deps.clientManager.save_credentials()
+            return True
+        except Exception:
+            log.error("failed to update server headers", exc_info=True)
             return False
 
     def known_servers(self):
