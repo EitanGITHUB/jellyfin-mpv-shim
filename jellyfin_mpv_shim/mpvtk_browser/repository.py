@@ -392,6 +392,16 @@ class ServerConn:
             return request_headers
 
         client.http._get_default_headers = get_default_headers
+        original_request = client.http.request
+
+        def request(data):
+            request_data = dict(data)
+            request_headers = dict(request_data.get("headers") or {})
+            request_headers.update(custom_headers)
+            request_data["headers"] = request_headers
+            return original_request(request_data)
+
+        client.http.request = request
 
         self.client = client
         self.api = client.jellyfin

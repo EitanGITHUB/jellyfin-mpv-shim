@@ -395,6 +395,16 @@ class ClientManager(object):
                     return request_headers
 
                 http_client._get_default_headers = get_default_headers
+            original_request = http_client.request
+
+            def request(data, original_request=original_request):
+                request_data = dict(data)
+                request_headers = dict(request_data.get("headers") or {})
+                request_headers.update(headers)
+                request_data["headers"] = request_headers
+                return original_request(request_data)
+
+            http_client.request = request
 
         # Authentication uses its own API object and falls back to the global
         # requests module when no session exists. A session is required here so

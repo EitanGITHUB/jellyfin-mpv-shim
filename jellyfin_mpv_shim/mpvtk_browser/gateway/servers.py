@@ -20,6 +20,10 @@ def _collect_servers():
         cred.get("uuid"): cred.get("Name") or cred.get("address")
         for cred in list(deps.clientManager.credentials)
     }
+    headers_by_uuid = {
+        cred.get("uuid"): cred.get("custom_headers")
+        for cred in list(deps.clientManager.credentials)
+    }
     servers = []
     for uuid, client in list(deps.clientManager.clients.items()):
         cfg = client.config.data
@@ -34,6 +38,7 @@ def _collect_servers():
             "address": address,
             "token": token,
             "user_id": user_id,
+            "custom_headers": headers_by_uuid.get(uuid),
         })
     return servers
 
